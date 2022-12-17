@@ -1,0 +1,60 @@
+<DOCTYPE! html>
+
+<html>
+	<head>
+		<script src="script.js"></script>
+		<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+   		<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+   		<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.js"></script>
+        <link rel="stylesheet" href="general.css">
+	</head>
+
+	<body>
+		<div id="root">
+            <a href='/login'>log in here</a>
+			<div id="root"></div>
+        </div>
+	</body>
+	<script type="text/babel">
+
+		class App extends React.Component {
+			constructor() {
+				super()
+				this.state={
+					data: {},
+				}
+			}
+			async componentDidMount() {
+				let dat = await getTracks()
+				this.setState({
+					data: dat,
+				})
+			}
+			render() {
+				const {data} = this.state
+				console.log(data)
+				let arr = []
+				for(let i in data.recentTracks) {
+					arr.push(<p>{data.recentTracks[i]}</p>)
+				}
+				return(
+					<React.Fragment>
+						{arr}
+					</React.Fragment>
+				)
+			}
+		}
+		let access_code = window.location.hash.substring(14)
+		if(access_code != '') {
+			const root = ReactDOM.createRoot(document.getElementById('root'))
+			root.render(<App />)
+		}
+
+		async function getTracks() {
+			let data = await fetch('http://localhost:3000/getTracks?token='+access_code)
+			data = await data.json()
+			return data
+		}
+
+	</script>
+</html>
