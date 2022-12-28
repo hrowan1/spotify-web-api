@@ -2,15 +2,24 @@ const express = require('express')
 const request = require('request')
 const cors = require('cors')
 const querystring = require('querystring')
+const session = require('express-session')
 const app = express()
 const SpotifyWebApi = require('spotify-web-api-node')
-const port = process.env.PORT
+const { nextTick } = require('process')
+const port = process.env.PORT || 3000
 
 var client_id =  // Your client id
 var client_secret =  // Your secret
 var redirect_uri =  // Your redirect uri
 
-app.use(express.static(__dirname))
+
+app.use(session({
+    secret: 'spotiSecret',
+    resave: true,
+    saveUninitialized: true,
+}))
+
+app.use(express.static(__dirname+'/public'))
 app.use(cors())
 
 var spotifyApi = new SpotifyWebApi({
@@ -31,16 +40,24 @@ var generateRandomString = function(length) {
 
 app.listen(port, () => console.log(`Listening on port ${port}`))
 
+
 app.get('/getTracks', async function(req, res) {
-    
-    var token = req.query.token
-    spotifyApi.setAccessToken(token)
-    let recentTracks = await getRecentTracks()
-    let topTracks = await getTopTracks()
-    res.send({
-        recentTracks: recentTracks,
-        topTracks: topTracks,
-    })
+    let token = req.session.access
+    if(!token) {
+        res.send({
+            topTracks: {error: 'No tracks'},
+            recentTracks: {error: 'No tracks'}
+        })
+    }
+    else {
+        spotifyApi.setAccessToken(token)
+
+        let tracks = {
+            topTracks: await getTopTracks(),
+            recentTracks: await getRecentTracks(),
+        }
+        res.send(tracks)
+    }
 })
 
 app.get('/login', function(req, res) {
@@ -80,18 +97,16 @@ app.get('/callback', function(req, res) {
             json: true
         }
         request.post(authOptions, async function(error,response,body) {
-
-            
-            
-            /*res.send({
-                recentTracks: recentTracks,
-                topTracks: topTracks
-            })*/
-
-            res.redirect('/#' +
-            querystring.stringify({
-                access_token: body.access_token
-            }))
+            if(!error && response.statusCode === 200) {
+                req.session.access = body.access_token
+                res.redirect('/trackpage.html')
+            }
+            else {
+                res.redirect('/#' +
+                querystring.stringify({
+                    error: 'invalid_token'
+                }));
+            }
         })
     }
 })
@@ -110,8 +125,8 @@ async function getRecentTracks() {
 async function getTopTracks() {
     let topTracks = []
     let data = await spotifyApi.getMyTopTracks({
-        limit: 10,
-        time_range: 'long_term'
+        limit: 20,
+        time_range: 'short_term'
     })
     for(let i in data.body.items) {
         topTracks.push(data.body.items[i].name)
